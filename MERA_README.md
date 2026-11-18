@@ -1,150 +1,129 @@
-# SWE MERA: MERA Forge
+# SWE MERA: готовая RL-модель под Pi
 
-Сабмит для **Stage II**: адаптированный форк mini-swe-agent и локальная inference-модель
-**Qwen/Qwen3.8-27B-FP8**, три независимые реплики на GPU организаторов.
+Текущий кандидат Stage II использует **Qwen/Qwen3.8-27B в BF16 и готовый
+harness-hub/Qwen3.8-27B-pi-adapted LoRA**, работающие с настоящим
+**Pi SDK 1.5.2**. Собственное дообучение не запускается.
 
-Архив собирается командой ниже в `dist/mera-mini-stage2.zip`. Это кандидат:
-проверки кода и упаковки не заменяют запуск модели на GPU и измерение pass@1.
-Непроверенный результат соревнования не заявляется.
+Это адаптация готовой модели к контракту соревнования. Полноценный запуск
+выбранных весов, GPU startup, пропускная способность и конкурсный pass@1 пока
+**не проверены**. Прежние прогоны маленькой 8B-модели относятся к старому mini
+harness и не являются результатом этого кандидата.
 
-## Что внутри
+## Как устроен сабмит
 
-- `submission_stage2/` — только загружаемые файлы: YAML, Docker build context,
-  пакет агента. Веса скачиваются при сборке образа; runtime работает offline.
-- `custom_agent/react_bash_agent.py` — адаптер Harbor для настоящего цикла
-  mini-swe-agent 2.4.6. Пакет `_vendor/mini_swe_agent` содержит зафиксированный
-  upstream, MIT-лицензию и provenance. Добавлены literal search, точный editor,
-  сжатие контекста по бюджету, учёт реально выполненных проверок и завершение
-  с учётом контракта конкретной постановки, включая экспорт `change.diff`.
-- `scripts/` — проверка структуры, воспроизводимая упаковка, запуск официального
-  runner, проверка API/нагрузки и чтение настоящих результатов Harbor.
-- `vendor/stage2/` — неизменённые runner, API-check и requirements организаторов
-  с commit и SHA256 в `SOURCE.json`. Они не попадают в ZIP.
-- `vendor/mini_swe_agent/` — исходники upstream до адаптации;
-  `experiments/legacy_react_agent.py` сохраняет предыдущий агент для сравнения.
-- `data/public_statements/` и `data/public_task_inventory.json` — 49 публичных
-  постановок и разрешённые metadata с immutable source URLs и хешами.
-  Полные постановки хранятся только локально; для отдельного checkout они
-  скачиваются `scripts/fetch_public_statements.py` по pinned URL с проверкой SHA256.
-  `experiments/diagnostics/` и `experiments/results/` — воспроизводимые fixtures
-  и компактные результаты локальных диагностик. Эти данные не входят в ZIP.
+Harbor импортирует обязательный класс
+custom_agent.react_bash_agent:ReactBashAgent; он указывает на PiAgent.
+Python-адаптер управляет отдельной нативной Pi-сессией через сервис в
+inference-контейнере. Установка Node на Harbor worker не требуется.
 
-[GitHub-форк](https://github.com/L0ckR/mini-swe-agent-mera) ·
-[Выбор harness, изменения и план сравнения](docs/harness-fork.md)
+Внутри inference-образа supervisor запускает private vLLM на 127.0.0.1:8001
+и HTTP bridge на порту 8000. Bridge передаёт /v1/* в vLLM и запускает отдельный
+Node-процесс для каждой Pi-сессии. Pi сохраняет собственные управляющий цикл,
+промпт, четыре инструмента **read, bash, edit, write**, формат результатов и
+компактацию истории. Его операции чтения, записи и команд передаются Python
+адаптеру и исполняются только через Harbor environment.exec в /testbed.
+Task filesystem в inference-контейнер не монтируется.
 
-Модель выбрана по официальной карточке: FP8 checkpoint занимает около 31 ГБ и
-оставляет место для KV cache на каждой 96-ГБ карте. Независимые реплики позволяют
-обслуживать несколько задач без tensor-parallel обмена. Контекст — 65536 токенов;
-агент начинает сжимать историю раньше, сохраняя исходную задачу и недавние шаги.
-Reasoning включён для решения задач, но выключен по умолчанию на сервере: это
-позволяет пройти короткую проверку tool call с `max_tokens=256`.
+Для Go/PHP images наличие Python внутри задачи не требуется: при его
+отсутствии чтение, запись, проверка изменений и экспорт diff используют
+Bash/coreutils/Git. Настоящий Python interpreter нужен только worker Harbor.
 
-Результаты из карточки модели относятся к другим наборам и harness; они не
-предсказывают pass@1 на SWE MERA. Окончательный выбор подтверждается прогоном.
+Адаптер сохраняет исходную постановку, учитывает ограничения на non-test
+изменения и экспортирует /testbed/change.diff, когда его требует задача.
+В 22 из 49 публичных постановок собирается только этот файл. Применимость
+diff и ограничения файлов проверяются отдельно от поведения реализации.
 
-## Что проверено локально
+[Подробности модели и интеграции](docs/pi-ready-model.md).
 
-Живые запуски выполнены на небольшой **`qwen3:8b-q4_K_M` через Ollama**,
-а не на целевой 27B-модели. Первые две серии на трёх synthetic задачах дали
-0/3 против 0/3 и 1/3 против 1/3 для сохранённых before/after snapshots.
-Третья серия только нового snapshot с дополнительным reviewer дала 1/3;
-reviewer ошибался, поэтому по умолчанию выключен. Две отдельные попытки
-публичной Click py-009 также не решили задачу: обе сохранили 4/6 публичных
-критериев. Во второй корректный `change.diff` доставлен и применён к чистой
-копии, но целевые ошибки остались. В ней одновременно включён thinking и
-увеличен вывод модели, поэтому изменения нельзя приписать одному harness.
-Это диагностические наблюдения, а не измерение конкурсного pass@1;
-доказанного прироста числа решённых задач пока нет.
-[Результаты и ограничения](docs/local-quality-results.md).
+## Зафиксированные настройки
 
-По этим запускам добавлены защита от случайного удаления исходного репозитория,
-literal search для строк вида `--help`, подсказки при повторных неуспешных edit
-и проверка свежести тестов относительно текущего patch. Независимый semantic
-review доступен как экспериментальная опция `semantic_review=True`, по умолчанию
-выключен: проверяющая модель тоже может ошибаться. Новые механизмы требуют
-отдельного измерения на одинаковом backend и наборе задач.
+| Параметр | Значение |
+|---|---|
+| Основа | Qwen/Qwen3.8-27B, BF16 |
+| Base revision | 37561816e66b5b9153b1b64c10968c18c1e6f4a0 |
+| RL-адаптер | harness-hub/Qwen3.8-27B-pi-adapted, LoRA rank 32 |
+| Adapter revision | e786f8491742268f9b2bc729697b13bfac26d4ad |
+| Рабочий model alias | qwen38-27b-pi-mera |
+| vLLM / Node / Pi SDK | 0.31.0 / 22.23.5 / 1.5.2 |
+| Thinking / temperature | выключен / 0.8 |
+| GPU replicas / tensor parallel | 3 / 1 |
+| Контекст / максимальный вывод | 65536 / 8192 токенов |
+| KV cache / max sequences на replica | BF16 auto / 4 |
+| Лимит агента | 1680 секунд, до 100 ходов |
 
-Локальные команды агента исполняются через bubblewrap в `/testbed`, без сети;
-при отсутствии доступной изоляции runner прекращает запуск. Нужны Linux,
-`bwrap` и отдельно запущенный OpenAI-compatible inference endpoint. Например,
-только текущую версию можно проверить без старого ZIP:
+Модель и адаптер скачиваются при сборке, по immutable revision; никаких весов
+в ZIP нет. Adapter SHA256, размер, конфигурация, 512 F32 LoRA-тензоров и их
+пары проверяются до завершения сборки. Runtime offline. Base и adapter имеют
+разные API aliases, поэтому запрос к рабочему alias не должен случайно попасть
+на основу без LoRA.
 
-```bash
-.venv/bin/python scripts/run_local_diagnostics.py --variants after --base-url http://127.0.0.1:18000/v1 --model LOCAL_MODEL --output jobs/diagnostics-live-NEXT
-```
-
-Для before/after требуется явно выбрать сохранённый `--before-zip`; каждый
-запуск использует новый output-каталог. `scripts/ollama_bridge.py` предоставляет
-локальный адаптер API и записывает фактические настройки backend, в том числе
-неподдерживаемые параметры. Скрипт не делает Ollama эквивалентом vLLM.
+Три BF16 replicas и max sequences 4 — начальная настройка под 3 × 96 ГБ.
+Это не измеренный результат нагрузки при 20 одновременных задачах. Локальная
+RTX 4070 Ti SUPER 16 ГБ не вмещает выбранную BF16-связку. В доступной Yandex
+конфигурации проверены ограничения квот: квота A100 равна нулю, доступная T4
+имеет 16 ГБ; подходящий GPU-прогон пока не выполнен.
 
 ## Проверить и собрать
 
-Python 3.12, `uv`; GPU и Docker для этих команд не нужны:
+Нужен Python 3.12. Для CPU-проверок Docker и GPU не требуются.
 
-```bash
+~~~bash
 uv venv --python 3.12 .venv
 uv pip install --python .venv/bin/python -r requirements.txt
 .venv/bin/python scripts/fetch_public_statements.py
 .venv/bin/python -m unittest discover -s tests -v
 .venv/bin/python scripts/validate_submission.py submission_stage2
-.venv/bin/python scripts/package_submission.py submission_stage2 --output dist/mera-mini-stage2.zip
-.venv/bin/python scripts/validate_submission.py dist/mera-mini-stage2.zip
-```
+.venv/bin/python scripts/package_submission.py submission_stage2 --output dist/mera-pi-stage2.zip
+~~~
 
-В корне ZIP должны быть `submission.yaml`, `custom_agent/`, `inference/`, без
-обёртки `submission_stage2/`. Рядом с ZIP сохраняется manifest с хешами файлов.
-Траектории, данные задач, `.env`, ключи и локальные runner в архив не включаются.
+Для проверки настоящего SDK нужны Node 22.19+ и npm. Зависимости ставятся в
+отдельную локальную копию, чтобы node_modules не попали в upload context:
 
-## Проверить на GPU-сервере
+~~~bash
+mkdir -p local_runs/pi-native
+cp -a submission_stage2/inference/pi/. local_runs/pi-native/
+npm ci --prefix local_runs/pi-native --ignore-scripts --omit=dev --no-audit --no-fund
+node local_runs/pi-native/worker.mjs --check
+npm test --prefix local_runs/pi-native
+.venv/bin/python scripts/check_pi_bridge.py --worker-path local_runs/pi-native/worker.mjs --output jobs/pi-bridge-smoke-NEXT
+~~~
 
-Целевая среда: Linux x86_64, Docker Engine + Compose + NVIDIA Container Toolkit,
-**3 × RTX PRO 6000 Blackwell 96 ГБ**, достаточная RAM хоста для vLLM и свободное
-место под модель, Docker build layers и образы задач. Практический стартовый
-ориентир — от 140 ГиБ свободного места; Docker может хранить данные на другом диске.
-Ресурсы inference-хоста и лимиты CPU/RAM отдельных task-контейнеров — разные вещи.
+SDK smoke использует настоящий Pi и подготовленный локальный SSE endpoint.
+Он проверяет loop, native schemas, обработку инструментов и остановку.
+Он не проверяет качество весов.
 
-```bash
+На сервере с подходящими GPU и Docker:
+
+~~~bash
 .venv/bin/python scripts/preflight.py
-git clone https://github.com/MERA-Evaluation/SWE-MERA-CHALLENGE.git official_checkout
-git -C official_checkout checkout 070bcb675d96845745e28b40f3830c98139217ea
-.venv/bin/python scripts/run_local.py --username mera-forge-001 --tasks official_checkout/tasks --concurrency 20
-```
+.venv/bin/python scripts/run_local.py --username mera-pi-001 --tasks official_checkout/tasks --concurrency 20
+~~~
 
-`run_local.py` временно размещает доверенные файлы рядом с сабмитом и вызывает
-официальный runner. Он собирает образ, проверяет tool calls, запускает Harbor с
-**одной попыткой на задачу**, затем удаляет inference container/image. Результаты
-остаются в `jobs/stage2/mera-forge-001/`. До полной оценки стоит проверить один
-публичный task в отдельном каталоге, переданном через `--tasks`, чтобы обнаружить
-ошибки инфраструктуры без запуска всего набора.
+Официальные runner, API-check и requirements сохранены без изменений в
+vendor/stage2 с provenance. Неизменённый runner собирает inference, проверяет
+bash/pwd и запускает ровно одну попытку на задачу. Для отдельной проверки
+уже запущенного сервера:
 
-В текущем upstream runner default concurrency — **20**, хотя README организаторов
-указывает 10. Здесь проверяется более тяжёлый режим 20; при заданном организаторами
-другом значении необходимо измерить и его.
+~~~bash
+.venv/bin/python scripts/check_inference.py --model qwen38-27b-pi-mera --concurrency 20 --output jobs/pi-api-check.json
+~~~
 
-Для отдельной проверки пропускной способности, пока inference работает:
+Эта проверка использует actual Pi schemas, normal-text completion и thinking
+off; она остаётся короткой проверкой API, а не бенчмарком длинных контекстов.
 
-```bash
-.venv/bin/python scripts/check_inference.py --concurrency 20 --output jobs/inference-check.json
-.venv/bin/python scripts/summarize_run.py jobs/stage2/mera-forge-001/ИМЯ_ПАПКИ_ПРОГОНА --json
-```
+## Сравнение и сохранённые результаты
 
-Проверка API использует настоящий запрос организаторов, повторяет tool call после
-результата инструмента, проверяет инструменты агента и запускает параллельные
-запросы с reasoning. Это короткая проверка протокола и нагрузки; скорость при
-длинных контекстах и укладывание в 30 минут определяются реальными задачами. Итоговый
-score читается из оригинальных `verifier/reward.txt`; скрипты их не меняют.
-В начале решать проблемы запуска и протокола, затем сравнивать модель и настройки
-по полному публичному набору: solved/total, missing rewards, exceptions, время и
-число токенов. Публичный и приватный score считать раздельно.
+Публичный набор содержит 18 Go, 15 PHP и 16 Python задач. Следующее сравнение
+должно отдельно показывать solved/total по каждому языку и общее время,
+ошибки инструментов и таймауты при одинаковых ресурсах.
 
-## Источники и ограничения
+Предыдущий mini-swe-agent кандидат сохранён вместе с SHA256 в
+experiments/mini_before_pi/submission_stage2 и source_sha256.json.
+[Исторические mini/8B-диагностики](docs/local-quality-results.md) и
+[его описание](docs/harness-fork.md) сохраняются без переименования в результаты Pi.
+Ни hidden verifiers, ни gold patches соревнования в обучение и сабмит не входят.
 
-- [Официальный контракт Stage II](https://github.com/MERA-Evaluation/SWE-MERA-CHALLENGE/tree/070bcb675d96845745e28b40f3830c98139217ea/example_stage2).
-- [Карточка Qwen3.8-27B-FP8](https://huggingface.co/Qwen/Qwen3.8-27B-FP8).
-- [vLLM recipe](https://github.com/vllm-project/recipes/blob/main/models/Qwen/Qwen3.8-27B.yaml).
-- [Harbor 0.21.0](https://github.com/harbor-framework/harbor/tree/v0.21.0).
-
-Не использовать gold patches, скрытые тесты или готовые решения задач. Сохранять
-оригинальные jobs и trajectories. В ZIP загружается программа решения и inference,
-а не результаты локальной оценки. Загрузка на площадку выполняется отдельно.
+Публичные постановки хранятся локально; для воспроизводимости опубликован
+inventory с pinned URL/SHA256 и scripts/fetch_public_statements.py.
+Данные задач, jobs, траектории, ключи, npm cache и node_modules в ZIP не входят.
+Загрузка на площадку выполняется отдельно.

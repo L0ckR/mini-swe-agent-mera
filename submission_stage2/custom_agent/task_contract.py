@@ -8,6 +8,7 @@ import json
 from pathlib import PurePosixPath
 import re
 import shlex
+from .pi_portable import has_python, portable_contract
 
 
 @dataclass(frozen=True)
@@ -136,6 +137,14 @@ raise SystemExit(result['returncode'])
 async def _execute(environment, contract: TaskContract, timeout_sec: float, validate_only: bool) -> dict:
     if timeout_sec <= 0:
         return {"valid": False, "written": False, "path": contract.patch_path, "returncode": 124, "output": "Patch validation/export deadline expired; no command started."}
+    try:
+        if not await has_python(environment, contract.workdir, timeout_sec=min(5, timeout_sec)):
+            return await portable_contract(environment, contract, timeout_sec=timeout_sec, validate_only=validate_only)
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:
+        return {"valid": False, "written": False, "path": contract.patch_path, "returncode": 1,
+                "output": f"Task runtime inspection failed: {type(exc).__name__}: {exc}"}
     source = base64.b64encode(_EXPORT.encode()).decode("ascii")
     payload = base64.b64encode(json.dumps({"workdir": contract.workdir, "path": contract.patch_path,
                                          "non_test_only": contract.non_test_only, "validate_only": validate_only}).encode()).decode("ascii")

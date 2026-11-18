@@ -1,0 +1,18 @@
+{
+  "model_id": "Qwen/Qwen3.8-27B-FP8",
+  "revision": "c3a462cc3d38cf351f3b26cbd763469eeb74ef81",
+  "served_model_name": "qwen38-27b-mera",
+  "vllm_version": "0.31.0",
+  "model_directory": "/models/qwen38-27b-fp8",
+  "max_model_len": 65536,
+  "data_parallel_size": 3,
+  "max_num_seqs": 8,
+  "max_num_batched_tokens": 8192,
+  "gpu_memory_utilization": 0.90,
+  "kv_cache_dtype": "fp8",
+  "default_chat_template_kwargs": {
+    "enable_thinking": false,
+    "preserve_thinking": true,
+    "reasoning_effort": "medium"
+  }
+}

@@ -1,2 +1,2 @@
 agent: custom_agent
-model: qwen38-27b-mera
+model: qwen38-27b-pi-mera

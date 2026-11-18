@@ -1,5 +1,9 @@
 # mini-swe-agent fork for SWE MERA Stage II
 
+> Историческая конфигурация. Текущий кандидат использует готовый Pi RL-адаптер
+> и настоящий Pi SDK; см. [адаптацию готовой модели](pi-ready-model.md).
+> Предыдущие источники сохранены в `experiments/mini_before_pi/submission_stage2`.
+
 Основной harness — реальный форк **mini-swe-agent 2.4.6**, upstream commit
 `04d809ceab9df28f9adaed044884180159172930`:
 [GitHub fork](https://github.com/L0ckR/mini-swe-agent-mera),

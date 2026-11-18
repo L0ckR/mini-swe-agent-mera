@@ -7,7 +7,7 @@ import unittest
 
 import httpx
 
-from scripts.ollama_bridge import Settings, build_native_request, build_openai_response, create_server
+from scripts.ollama_bridge import Settings, buffered_sse, build_native_request, build_openai_response, create_server
 
 
 TOOL = {"type": "function", "function": {"name": "bash", "parameters": {
@@ -60,13 +60,41 @@ class ConversionTests(unittest.TestCase):
 
     def test_invalid_alias_stream_or_tool_arguments_are_rejected(self):
         base = {"model": "qwen35-local", "messages": [{"role": "user", "content": "hi"}]}
-        for update in ({"model": "wrong"}, {"stream": True}, {"max_tokens": True}, {"messages": []}):
+        for update in ({"model": "wrong"}, {"stream": "yes"}, {"stream": 1}, {"stream_options": []},
+                       {"stream_options": {"include_usage": 1}}, {"max_tokens": True}, {"messages": []}):
             with self.subTest(update=update), self.assertRaises(ValueError):
                 build_native_request(base | update, Settings())
         with self.assertRaises(ValueError):
             build_native_request(base | {"messages": [{"role": "assistant", "tool_calls": [
                 {"function": {"name": "bash", "arguments": "not json"}},
             ]}]}, Settings())
+
+    def test_buffered_sse_preserves_indexed_calls_reasoning_and_final_usage(self):
+        native, _ = build_native_request({"model": "qwen35-local", "messages": [{"role": "user", "content": "hi"}],
+                                         "stream": True, "stream_options": {"include_usage": True}}, Settings())
+        self.assertFalse(native["stream"])
+        response = build_openai_response({"message": {"content": "Обнаружены файлы", "thinking": "Read source.", "tool_calls": [
+            {"id": "call-a", "function": {"name": "read", "arguments": {"path": "one.py"}}},
+            {"id": "call-b", "function": {"name": "bash", "arguments": {"command": "printf 'hello\\n'"}}},
+        ]}, "prompt_eval_count": 50, "eval_count": 12}, "local")
+        lines = buffered_sse(response).decode().splitlines()
+        self.assertEqual(lines[-2], "data: [DONE]")
+        chunks = [json.loads(line[6:]) for line in lines if line.startswith("data: {")]
+        self.assertTrue(all(chunk["object"] == "chat.completion.chunk" for chunk in chunks))
+        self.assertEqual({chunk["id"] for chunk in chunks}, {response["id"]})
+        self.assertEqual(chunks[0]["choices"][0]["delta"]["role"], "assistant")
+        deltas = [chunk["choices"][0]["delta"] for chunk in chunks if chunk["choices"]]
+        self.assertEqual("".join(delta.get("reasoning_content", "") for delta in deltas), "Read source.")
+        self.assertEqual("".join(delta.get("content", "") for delta in deltas), "Обнаружены файлы")
+        calls = [call for delta in deltas for call in delta.get("tool_calls", [])]
+        self.assertEqual([call["index"] for call in calls], [0, 1])
+        self.assertEqual([call["id"] for call in calls], ["call-a", "call-b"])
+        self.assertEqual(json.loads(calls[1]["function"]["arguments"]), {"command": "printf 'hello\\n'"})
+        self.assertEqual(chunks[-2]["choices"][0]["finish_reason"], "tool_calls")
+        self.assertEqual(chunks[-1]["choices"], [])
+        self.assertEqual(chunks[-1]["usage"]["total_tokens"], 62)
+        without_usage = buffered_sse(response, include_usage=False).decode()
+        self.assertNotIn('"usage"', without_usage)
 
     def test_thinking_setting_and_length_response_are_explicit(self):
         native, _ = build_native_request({"model": "qwen35-local", "messages": [{"role": "user", "content": "hi"}], "max_tokens": 256}, replace(Settings(), thinking=True))
@@ -135,3 +163,28 @@ class HTTPProtocolTests(unittest.TestCase):
             self.assertIn("Ollama returned HTTP 500", response.json()["error"]["message"])
         finally:
             self.server.bridge_state.client.close()
+
+    def test_http_sse_stream_parses_through_httpx_and_keeps_native_upstream_buffered(self):
+        with self.client.stream("POST", "/v1/chat/completions", json={
+            "model": "qwen35-local", "messages": [{"role": "user", "content": "Call bash pwd"}],
+            "tools": [TOOL], "stream": True, "stream_options": {"include_usage": True},
+        }) as response:
+            self.assertEqual(response.status_code, 200)
+            self.assertIn("text/event-stream", response.headers["content-type"])
+            events = [line[6:] for line in response.iter_lines() if line.startswith("data: ")]
+        self.assertEqual(events[-1], "[DONE]")
+        chunks = [json.loads(value) for value in events[:-1]]
+        call = next(chunk["choices"][0]["delta"]["tool_calls"][0] for chunk in chunks
+                    if chunk["choices"] and chunk["choices"][0]["delta"].get("tool_calls"))
+        self.assertEqual(call["index"], 0)
+        self.assertTrue(call["id"])
+        self.assertEqual(call["type"], "function")
+        self.assertEqual(json.loads(call["function"]["arguments"]), {"command": "pwd"})
+        self.assertEqual(chunks[-2]["choices"][0]["finish_reason"], "tool_calls")
+        self.assertEqual(chunks[-1]["usage"]["completion_tokens"], 12)
+        upstream = json.loads(next(request.content for request in self.requests if request.url.path == "/api/chat"))
+        self.assertFalse(upstream["stream"])
+        info = self.client.get("/local-info").json()
+        self.assertEqual(info["stream_mode"], "buffered_sse")
+        self.assertFalse(info["upstream_streaming"])
+        self.assertEqual(info["streaming_requests"], 1)

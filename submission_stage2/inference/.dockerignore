@@ -3,3 +3,10 @@
 !model.json
 !serve.py
 !download_model.py
+!supervisor.py
+!pi_service.py
+!pi/
+!pi/**
+pi/node_modules/
+pi/.npm/
+pi/*.log

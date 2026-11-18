@@ -9,6 +9,7 @@ import math
 from pathlib import Path
 import re
 import shlex
+from .pi_portable import has_python, portable_snapshot
 
 
 _SNAPSHOT_HELPER = r'''
@@ -145,6 +146,16 @@ class EvidenceTracker:
     async def snapshot(self, timeout_sec: float = 20, include_diff: bool = True) -> dict:
         if isinstance(timeout_sec, bool) or not math.isfinite(timeout_sec) or timeout_sec <= 0:
             raise ValueError("snapshot timeout must be positive and finite")
+        try:
+            if not await has_python(self.environment, self.workdir, timeout_sec=min(5, timeout_sec)):
+                return await portable_snapshot(self.environment, self.workdir, timeout_sec=timeout_sec,
+                                               include_diff=include_diff, ignored_paths=self.ignored_paths)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            return {"fingerprint": None, "has_changes": False, "diff": "", "stat": "", "status": "",
+                    "returncode": 1, "complete_fingerprint": False,
+                    "error": f"Repository runtime inspection unavailable: {type(exc).__name__}: {exc}"}
         payload = {"workdir": self.workdir, "timeout": timeout_sec * 0.9, "include_diff": include_diff, "ignored_paths": self.ignored_paths}
         source = base64.b64encode(_SNAPSHOT_HELPER.encode()).decode()
         encoded = base64.b64encode(json.dumps(payload).encode()).decode()

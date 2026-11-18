@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "submission_stage2"))
 from custom_agent.model_client import ForkModel
 from custom_agent.policy import RunBudget
-from custom_agent.react_bash_agent import HarborTools
+from custom_agent.mini_agent import HarborTools
 
 
 class PatchReviewTests(unittest.IsolatedAsyncioTestCase):

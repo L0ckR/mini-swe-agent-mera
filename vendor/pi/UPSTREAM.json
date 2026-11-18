@@ -1,0 +1,13 @@
+{
+  "name": "@earendil-works/pi-coding-agent",
+  "version": "1.5.2",
+  "repository": "https://github.com/earendil-works/pi",
+  "release_commit": "b4afdddf44e059c67ccf5097e5317d913521b470",
+  "license": "MIT",
+  "npm_resolved": "https://registry.npmjs.org/@earendil-works/pi-coding-agent/-/pi-coding-agent-1.5.2.tgz",
+  "npm_integrity": "sha512-mUWI04rqF1Vd/m1q+Ps1XeWsTXEVvRUnsmRa83I3Dzua0Tx5bYS93imeqtIfrXf7PkkaR6ERz+AuQhIJlom5yA==",
+  "package_lock_sha256": "a7c9f67064f6a4dc35a7c5293fdf9cf85f9893597098ec5684c66599436847b5",
+  "integration": "Unmodified native Pi SDK agent loop, default four native tool definitions and prompts. Tool operation callbacks delegate to Harbor over JSON-lines RPC. No task filesystem is mounted into the inference container.",
+  "source_entrypoint": "worker.mjs",
+  "training_harness_version": "The upstream RL adapter model card does not pin a Pi version. This integration pins published Pi1.5.2 explicitly; exact training-version equivalence is not claimed."
+}

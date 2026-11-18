@@ -6,7 +6,6 @@ import hashlib
 import json
 from pathlib import Path
 import unittest
-import sys
 
 from jinja2 import Environment, nodes
 from jinja2.ext import Extension
@@ -43,10 +42,7 @@ class PinnedTemplateTests(unittest.TestCase):
         env = Environment(extensions=[GenerationExtension])
         env.globals["raise_exception"] = reject_template
         cls.template = env.from_string(cls.source)
-        # The pure tools module has no Harbor/model or host-config side effects.
-        sys.path.insert(0, str(ROOT / "submission_stage2"))
-        from custom_agent.tools import TOOLS
-        cls.tools = TOOLS
+        cls.tools = json.loads((ROOT / "submission_stage2/inference/pi/tool-schema.json").read_text())
 
     def render(self, messages, **kwargs):
         defaults = self.manifest["default_chat_template_kwargs"] | kwargs
@@ -58,31 +54,33 @@ class PinnedTemplateTests(unittest.TestCase):
         self.assertEqual(self.metadata["revision"], self.manifest["revision"])
         self.assertEqual(self.metadata["model_id"], self.manifest["model_id"])
         self.assertEqual(hashlib.sha256(self.source.encode()).hexdigest(), self.metadata["sha256"])
+        self.assertEqual(self.metadata["adapter"]["model_id"], self.manifest["adapter"]["model_id"])
+        self.assertEqual(self.metadata["adapter"]["revision"], self.manifest["adapter"]["revision"])
+        self.assertEqual(self.metadata["adapter"]["sha256"], self.metadata["sha256"])
 
     def test_server_default_leaves_smoke_check_output_budget_for_tool_call(self):
         prompt = self.render([{"role": "user", "content": "Use bash to run pwd."}])
         self.assertTrue(prompt.endswith("<|im_start|>assistant\n<think>\n\n</think>\n\n"))
         self.assertIn('"name": "bash"', prompt)
 
-    def test_agent_can_enable_thinking_and_replay_multiline_command_then_finish(self):
+    def test_pi_replays_native_multiline_command_and_normal_text_completion_without_thinking(self):
         command = "python3 - <<'PY'\nif True:\n    print('indented')\nPY\n"
         messages = [
             {"role": "system", "content": "Solve the repository issue."},
             {"role": "user", "content": "Fix the defect and test the change."},
-            {"role": "assistant", "content": None, "reasoning_content": "Check the reproduction first.", "tool_calls": [
-                {"id": "call_1", "type": "function", "function": {"name": "bash", "arguments": {"command": command, "timeout_sec": 120}}},
+            {"role": "assistant", "content": None, "tool_calls": [
+                {"id": "call_1", "type": "function", "function": {"name": "bash", "arguments": {"command": command, "timeout": 120}}},
             ]},
             {"role": "tool", "tool_call_id": "call_1", "content": "exit_code: 0\nindented\n"},
-            {"role": "assistant", "content": None, "reasoning_content": "The targeted check passed.", "tool_calls": [
-                {"id": "call_2", "type": "function", "function": {"name": "finish", "arguments": {"summary": "Fixed the defect; focused check passed."}}},
-            ]},
-            {"role": "tool", "tool_call_id": "call_2", "content": "Final diff check passed."},
+            {"role": "assistant", "content": "Fixed the defect; focused check passed."},
         ]
-        prompt = self.render(messages, enable_thinking=True, reasoning_effort="medium", preserve_thinking=True)
+        prompt = self.render(messages)
         self.assertIn(command, prompt)
-        self.assertIn("<think>\nCheck the reproduction first.\n</think>", prompt)
-        self.assertIn("<function=finish>\n<parameter=summary>", prompt)
-        self.assertTrue(prompt.endswith("<|im_start|>assistant\n<think>\n"))
+        self.assertIn("<function=bash>\n<parameter=command>", prompt)
+        self.assertIn("<parameter=timeout>\n120", prompt)
+        self.assertIn("Fixed the defect; focused check passed.", prompt)
+        self.assertNotIn("<function=finish>", prompt)
+        self.assertTrue(prompt.endswith("<|im_start|>assistant\n<think>\n\n</think>\n\n"))
 
     def test_supported_efforts_and_invalid_high_effort(self):
         messages = [{"role": "user", "content": "Inspect the repository."}]

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -17,17 +18,44 @@ MANIFEST_PATH = Path(__file__).with_name("model.json")
 
 def load_manifest(path: Path = MANIFEST_PATH) -> dict:
     manifest = json.loads(path.read_text(encoding="utf-8"))
-    for field in ("model_id", "revision", "served_model_name", "vllm_version", "model_directory"):
+    for field in ("model_id", "revision", "served_model_name", "base_served_model_name", "vllm_version", "model_directory"):
         if not isinstance(manifest.get(field), str) or not manifest[field]:
             raise ValueError(f"model.json must contain a nonempty {field}")
     if not re.fullmatch(r"[0-9a-f]{40}", manifest["revision"]):
         raise ValueError("Model revision must be an immutable full Hugging Face commit SHA")
+    adapter = manifest.get("adapter")
+    if not isinstance(adapter, dict):
+        raise ValueError("model.json requires the pinned Pi adapter")
+    for field in ("model_id", "revision", "directory", "weights_sha256"):
+        if not isinstance(adapter.get(field), str) or not adapter[field]:
+            raise ValueError(f"model.json adapter requires {field}")
+    if not re.fullmatch(r"[0-9a-f]{40}", adapter["revision"]):
+        raise ValueError("Adapter revision must be an immutable full Hugging Face commit SHA")
+    if not re.fullmatch(r"[0-9a-f]{64}", adapter["weights_sha256"]):
+        raise ValueError("Adapter weights require a full SHA256 digest")
+    for field in ("rank", "alpha", "tensor_count", "weights_bytes"):
+        positive_int(adapter.get(field), f"adapter.{field}")
+    if adapter.get("source_dtype") != "F32" or set(adapter.get("target_modules") or []) != {
+        "q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"
+    }:
+        raise ValueError("The pinned Pi adapter requires its original F32 weights and seven target projections")
+    if manifest["served_model_name"] == manifest["base_served_model_name"]:
+        raise ValueError("Base and LoRA model aliases must differ to prevent accidental base-model inference")
+    if manifest.get("dtype") != "bfloat16" or manifest["model_id"].endswith("-FP8"):
+        raise ValueError("This Pi adapter must run on its BF16 base model")
+    if manifest.get("default_chat_template_kwargs", {}).get("enable_thinking") is not False:
+        raise ValueError("The Pi adapter was trained with thinking disabled")
     return manifest
 
 
 def positive_int(value: str | int, name: str) -> int:
-    number = int(value)
-    if number <= 0:
+    if isinstance(value, bool):
+        raise ValueError(f"{name} must be a positive integer")
+    try:
+        number = int(value)
+    except (TypeError, ValueError, OverflowError):
+        raise ValueError(f"{name} must be a positive integer") from None
+    if number <= 0 or isinstance(value, float) and value != number:
         raise ValueError(f"{name} must be positive")
     return number
 
@@ -52,20 +80,29 @@ def build_command(manifest: dict, environ: Mapping[str, str] | None = None) -> l
     memory_fraction = float(
         env.get("SWE_MERA_GPU_MEMORY_UTILIZATION", manifest["gpu_memory_utilization"])
     )
-    if not 0 < memory_fraction <= 1:
+    if not math.isfinite(memory_fraction) or not 0 < memory_fraction <= 1:
         raise ValueError("SWE_MERA_GPU_MEMORY_UTILIZATION must be in (0, 1]")
+    port = positive_int(env.get("SWE_MERA_INFERENCE_PORT", "8001"), "SWE_MERA_INFERENCE_PORT")
+    if port > 65535:
+        raise ValueError("SWE_MERA_INFERENCE_PORT must be at most 65535")
+    adapter = manifest["adapter"]
     command = [
         "vllm", "serve", manifest["model_directory"],
-        "--host", "0.0.0.0", "--port", "8000", "--api-key", "dummy",
-        "--served-model-name", manifest["served_model_name"],
-        "--tokenizer", manifest["model_directory"],
+        "--host", "127.0.0.1", "--port", str(port), "--api-key", "dummy",
+        "--served-model-name", manifest["base_served_model_name"],
+        "--tokenizer", adapter["directory"],
+        "--chat-template", str(Path(adapter["directory"]) / "chat_template.jinja"),
+        "--enable-lora", "--max-lora-rank", str(adapter["rank"]), "--max-loras", "1",
+        "--lora-dtype", "auto",
+        "--lora-modules", manifest["served_model_name"] + "=" + adapter["directory"],
         "--tensor-parallel-size", "1",
         "--data-parallel-size", str(parallel_size),
-        "--dtype", "bfloat16",
+        "--dtype", manifest["dtype"],
         "--language-model-only",
         "--attention-backend", "flashinfer",
         "--block-size", "256",
         "--enable-prefix-caching",
+        "--mamba-cache-mode", manifest["mamba_cache_mode"],
         "--enable-chunked-prefill",
         "--enable-prompt-tokens-details",
         "--kv-cache-dtype", manifest["kv_cache_dtype"],
@@ -74,10 +111,9 @@ def build_command(manifest: dict, environ: Mapping[str, str] | None = None) -> l
         "--max-num-batched-tokens", str(manifest["max_num_batched_tokens"]),
         "--gpu-memory-utilization", str(memory_fraction),
         "--reasoning-parser", "qwen3",
-        "--enable-auto-tool-choice", "--tool-call-parser", "qwen3_coder",
-        # The trusted organizer smoke check has a 256-token output budget.
-        # Disable thinking by default so it can produce its required tool call;
-        # the custom agent enables thinking explicitly when a task needs it.
+        "--enable-auto-tool-choice", "--tool-call-parser", manifest["tool_call_parser"],
+        # Preserve the Pi adapter's training mode and the organizer's short
+        # tool-call smoke check. The agent must not turn thinking on.
         "--default-chat-template-kwargs",
         json.dumps(manifest["default_chat_template_kwargs"], separators=(",", ":")),
         "--generation-config", "vllm",

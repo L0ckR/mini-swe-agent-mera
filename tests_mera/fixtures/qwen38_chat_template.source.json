@@ -1,8 +1,16 @@
 {
-  "model_id": "Qwen/Qwen3.8-27B-FP8",
-  "revision": "c3a462cc3d38cf351f3b26cbd763469eeb74ef81",
-  "url": "https://huggingface.co/Qwen/Qwen3.8-27B-FP8/resolve/c3a462cc3d38cf351f3b26cbd763469eeb74ef81/chat_template.jinja",
+  "model_id": "Qwen/Qwen3.8-27B",
+  "revision": "37561816e66b5b9153b1b64c10968c18c1e6f4a0",
+  "url": "https://huggingface.co/Qwen/Qwen3.8-27B/resolve/37561816e66b5b9153b1b64c10968c18c1e6f4a0/chat_template.jinja",
+  "adapter": {
+    "model_id": "harness-hub/Qwen3.8-27B-pi-adapted",
+    "revision": "e786f8491742268f9b2bc729697b13bfac26d4ad",
+    "url": "https://huggingface.co/harness-hub/Qwen3.8-27B-pi-adapted/resolve/e786f8491742268f9b2bc729697b13bfac26d4ad/chat_template.jinja",
+    "sha256": "af16f654968d47d09a6c604e00370b12dbc21f76456f59c9e98b82e84d9f6375"
+  },
   "license": "Apache-2.0",
   "sha256": "af16f654968d47d09a6c604e00370b12dbc21f76456f59c9e98b82e84d9f6375",
-  "purpose": "Offline protocol compatibility test only. Not included in the submission archive."
+  "verified_date": "2026-11-18",
+  "template_bytes": 9004,
+  "purpose": "Offline protocol compatibility test only. Base and adapter templates fetched at pinned revisions and verified byte-identical. Not included in the submission archive."
 }

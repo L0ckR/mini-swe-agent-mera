@@ -1,0 +1,5 @@
+SWE MERA harness adaptation
+
+Project adaptation sources are distributed under the Apache License 2.0; see LICENSE.
+The vendored mini-swe-agent component retains its MIT license and upstream notices
+at _vendor/mini_swe_agent/LICENSE.md and _vendor/mini_swe_agent/UPSTREAM.json.

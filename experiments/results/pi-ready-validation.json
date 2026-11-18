@@ -1,0 +1,85 @@
+{
+  "date": "2026-11-18",
+  "kind": "READY_PI_RL_MODEL_ADAPTATION",
+  "archive": "mera-pi-stage2.zip",
+  "archive_sha256": "6909b6f68465c27fa4bcb2e0ab81294337f0675c7ef9667c9b82f9aa99059bbb",
+  "archive_bytes": 97075,
+  "files": 38,
+  "model": {
+    "model_id": "Qwen/Qwen3.8-27B",
+    "revision": "37561816e66b5b9153b1b64c10968c18c1e6f4a0",
+    "served_model_name": "qwen38-27b-pi-mera",
+    "base_served_model_name": "qwen38-27b-base",
+    "vllm_version": "0.31.0",
+    "model_directory": "/models/qwen38-27b-bf16",
+    "dtype": "bfloat16",
+    "max_model_len": 65536,
+    "data_parallel_size": 3,
+    "max_num_seqs": 4,
+    "max_num_batched_tokens": 8192,
+    "gpu_memory_utilization": 0.9,
+    "kv_cache_dtype": "auto",
+    "tool_call_parser": "qwen3_xml",
+    "mamba_cache_mode": "align",
+    "adapter": {
+      "model_id": "harness-hub/Qwen3.8-27B-pi-adapted",
+      "revision": "e786f8491742268f9b2bc729697b13bfac26d4ad",
+      "directory": "/models/qwen38-27b-pi-adapter",
+      "rank": 32,
+      "alpha": 64,
+      "target_modules": [
+        "q_proj",
+        "k_proj",
+        "v_proj",
+        "o_proj",
+        "gate_proj",
+        "up_proj",
+        "down_proj"
+      ],
+      "source_dtype": "F32",
+      "tensor_count": 512,
+      "weights_bytes": 637610624,
+      "weights_sha256": "869b2a089882c0dac4683993f11081bd70edc30b32c64a988c688d6ac26b792a"
+    },
+    "default_chat_template_kwargs": {
+      "enable_thinking": false
+    }
+  },
+  "training": "NOT_RUN; existing published RL adapter used unchanged",
+  "user_scope": "Prepare ZIP without a full selected-model GPU run",
+  "tests": {
+    "tests_run": 188,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "successful": true,
+    "log": "pi-tests.log",
+    "includes_historical_mini_tests": true
+  },
+  "native_pi_sdk": {
+    "version": "1.5.2",
+    "actual_sdk_loop_with_scripted_model": "PASS",
+    "two_prompts_six_turns_same_session": "PASS",
+    "executable_jsonl_continuation": "PASS",
+    "model_quality": "NOT_MEASURED"
+  },
+  "python_free_go_php_file_operations_and_patch_export": "PASS",
+  "static_archive_validation": "PASS",
+  "isolated_zip_harbor_factory_import": "PASS",
+  "native_pi_npm_lock_and_licenses": "PASS",
+  "inference_docker_build": "NOT_RUN",
+  "selected_model_gpu_startup": "NOT_RUN",
+  "competition_pass_at_1": null,
+  "limitations": [
+    "No selected BF16 model inference or performance claim. User explicitly accepted preparing the ZIP without this run.",
+    "The adapter card does not pin training Pi version. Our Pi1.5.2 is pinned; exact training runtime equivalence is not established.",
+    "20-way model latency and BF16 GPU memory fit require later verification on the target96GBhardware."
+  ],
+  "end_to_end_bridge": {
+    "status": "PASS",
+    "native_model_turns": 4,
+    "actual_task_git_edit_and_test": true,
+    "change_diff_applies": true,
+    "model_responses": "scripted"
+  }
+}

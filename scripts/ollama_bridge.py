@@ -65,8 +65,12 @@ def build_native_request(payload: dict, settings: Settings) -> tuple[dict, list[
         raise ValueError("request body must be a JSON object")
     if payload.get("model") != settings.alias:
         raise ValueError(f"model must be the configured local alias {settings.alias!r}")
-    if payload.get("stream", False) is not False:
-        raise ValueError("this local diagnostic bridge supports only non-streaming requests")
+    if not isinstance(payload.get("stream", False), bool):
+        raise ValueError("stream must be a boolean")
+    stream_options = payload.get("stream_options")
+    if stream_options is not None and (not isinstance(stream_options, dict)
+            or "include_usage" in stream_options and not isinstance(stream_options["include_usage"], bool)):
+        raise ValueError("stream_options must be an object with a boolean include_usage")
     source_messages = payload.get("messages")
     if not isinstance(source_messages, list) or not source_messages:
         raise ValueError("messages must be a nonempty array")
@@ -166,6 +170,36 @@ def build_openai_response(data: dict, alias: str) -> dict:
                       "total_tokens": prompt + completion, "prompt_tokens_details": {"cached_tokens": 0}}}
 
 
+def buffered_sse(response: dict, *, include_usage: bool = True) -> bytes:
+    """Encode a completed response as SSE; this is not incremental generation.
+
+    The native Ollama request remains non-streaming, so tool JSON and usage are
+    complete before this bridge starts writing the OpenAI-compatible events.
+    """
+    choice = response["choices"][0]
+    message = choice["message"]
+    common = {key: response[key] for key in ("id", "created", "model")}
+    common["object"] = "chat.completion.chunk"
+    chunks = []
+
+    def add(delta: dict, finish_reason=None):
+        chunks.append({**common, "choices": [{"index": 0, "delta": delta, "finish_reason": finish_reason}]})
+
+    add({"role": "assistant", "content": ""})
+    reasoning = message.get("reasoning_content") or message.get("reasoning")
+    if reasoning:
+        # Sending one alias avoids appending the same reasoning twice in clients.
+        add({"reasoning_content": reasoning})
+    if message.get("content"):
+        add({"content": message["content"]})
+    for index, call in enumerate(message.get("tool_calls") or []):
+        add({"tool_calls": [{"index": index, "id": call["id"], "type": "function", "function": call["function"]}]})
+    add({}, choice["finish_reason"])
+    if include_usage:
+        chunks.append({**common, "choices": [], "usage": response.get("usage", {})})
+    return b"".join(b"data: " + json.dumps(chunk, ensure_ascii=False).encode("utf-8") + b"\n\n" for chunk in chunks) + b"data: [DONE]\n\n"
+
+
 class BridgeState:
     def __init__(self, settings: Settings, client: httpx.Client | None = None):
         self.settings = settings
@@ -173,6 +207,7 @@ class BridgeState:
         self.owns_client = client is None
         self.lock = threading.Lock()
         self.chat_requests = 0
+        self.streaming_requests = 0
         self.ignored_fields: set[str] = set()
 
     def info(self) -> dict:
@@ -188,6 +223,8 @@ class BridgeState:
                     "context_tokens": self.settings.context, "max_output_tokens": self.settings.max_tokens,
                     "thinking": self.settings.thinking, "thinking_token_budget_enforced": False,
                     "production_equivalent": False, "requests": self.chat_requests,
+                    "stream_mode": "buffered_sse", "upstream_streaming": False,
+                    "streaming_requests": self.streaming_requests,
                     "ignored_fields_seen": sorted(self.ignored_fields),
                     "unsupported_controls": UNSUPPORTED_FIELDS}
 
@@ -213,6 +250,20 @@ def create_server(settings: Settings, upstream_client: httpx.Client | None = Non
 
         def error(self, status, message):
             self.send_json(status, {"error": {"message": message, "type": "local_bridge_error"}})
+
+        def send_sse(self, response: dict, *, include_usage: bool):
+            data = buffered_sse(response, include_usage=include_usage)
+            try:
+                self.send_response(200)
+                self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+                self.send_header("Cache-Control", "no-cache")
+                self.send_header("X-Accel-Buffering", "no")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+                self.wfile.flush()
+            except (BrokenPipeError, ConnectionResetError):
+                pass
 
         def do_GET(self):
             if self.path == "/local-info":
@@ -245,6 +296,7 @@ def create_server(settings: Settings, upstream_client: httpx.Client | None = Non
                 return
             with state.lock:
                 state.chat_requests += 1
+                state.streaming_requests += int(payload.get("stream", False))
                 state.ignored_fields.update(ignored)
             try:
                 response = state.client.post(settings.upstream.rstrip("/") + "/api/chat", json=native)
@@ -252,7 +304,10 @@ def create_server(settings: Settings, upstream_client: httpx.Client | None = Non
                     self.error(502, f"Ollama returned HTTP {response.status_code}; inspect the local Ollama log")
                     return
                 result = build_openai_response(response.json(), settings.alias)
-                self.send_json(200, result)
+                if payload.get("stream", False):
+                    self.send_sse(result, include_usage=(payload.get("stream_options") or {}).get("include_usage", True))
+                else:
+                    self.send_json(200, result)
             except (httpx.HTTPError, ValueError, TypeError, KeyError, AttributeError):
                 self.error(502, "Local Ollama request failed or returned an invalid native chat response")
 

@@ -16,7 +16,7 @@ import httpx
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "submission_stage2"))
 from custom_agent.policy import BudgetExpired, RunBudget
-from custom_agent.react_bash_agent import ReactBashAgent, SNAPSHOT_COMMAND
+from custom_agent.mini_agent import ReactBashAgent, SNAPSHOT_COMMAND
 from harbor.models.agent.context import AgentContext
 
 

@@ -50,7 +50,8 @@ def collect_publish_files(root: Path = ROOT) -> list[tuple[str, bytes, bool]]:
                               ("requirements.txt", "mera_requirements.txt")]:
         add(root / path, destination)
     for folder, suffixes in (("scripts", {".py", ".sh"}), ("vendor/stage2", {".py", ".sh", ".json", ".txt"}),
-                             ("vendor/mini_swe_agent", {".py", ".json", ".md", ".patch", ".txt"}), ("docs", {".md"})):
+                             ("vendor/mini_swe_agent", {".py", ".json", ".md", ".patch", ".txt"}),
+                             ("vendor/pi", {".json", ".md", ".txt", ""}), ("docs", {".md"})):
         for source in sorted((root / folder).rglob("*")):
             if "__pycache__" not in source.parts and source.suffix in suffixes:
                 add(source)
@@ -59,6 +60,13 @@ def collect_publish_files(root: Path = ROOT) -> list[tuple[str, bytes, bool]]:
             add(source, "tests_mera/" + source.relative_to(root / "tests").as_posix())
     for name in ("cases.json", "public_statement_wrapper.json"):
         add(root / "experiments/diagnostics" / name)
+    previous = root / 'experiments/mini_before_pi/submission_stage2'
+    if previous.is_dir():
+        previous_files, previous_warnings = collect_directory(previous)
+        validate_files(previous_files, previous_warnings)
+        for item in previous_files:
+            selected['experiments/mini_before_pi/submission_stage2/' + item.name] = (item.data, item.executable)
+        add(previous.parent / 'source_sha256.json')
     # Publish only provenance metadata. External statements stay local and can
     # be fetched separately using their pinned source URLs and SHA256 hashes.
     inventory = root / "data/public_task_inventory.json"
@@ -202,7 +210,8 @@ def publish(api: GitHub, branch: str) -> dict:
     # Source/fixture selection is deterministic and independently inspectable.
     selected = collect_publish_files(ROOT)
     current = api.request("GET", f"/repos/{repo}/git/ref/heads/{branch}")
-    ref = current or api.request("GET", f"/repos/{repo}/git/ref/heads/{state['default_branch']}")
+    parent_branch = state.get('adaptation_branch', state['default_branch'])
+    ref = current or api.request("GET", f"/repos/{repo}/git/ref/heads/{parent_branch}")
     parent = ref["object"]["sha"]
     base = api.request("GET", f"/repos/{repo}/git/commits/{parent}")["tree"]["sha"]
     manifest = {"format": "swe-mera-source-inventory-1", "contains_raw_jobs": False,
@@ -214,7 +223,7 @@ def publish(api: GitHub, branch: str) -> dict:
         tree.append({"path": name, "mode": "100755" if executable else "100644", "type": "blob", "sha": blob["sha"]})
     result_tree = api.request("POST", f"/repos/{repo}/git/trees", {"base_tree": base, "tree": tree})
     commit = api.request("POST", f"/repos/{repo}/git/commits", {
-        "message": "Adapt mini-swe-agent core to SWE MERA Stage II with bounded context, tools and Harbor execution",
+        "message": "Adapt native Pi and ready Qwen RL adapter to SWE MERA Stage II; retain mini baseline",
         "tree": result_tree["sha"], "parents": [parent],
     })
     if current:
