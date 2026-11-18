@@ -85,6 +85,7 @@ class ForkHarborIntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.temporary.cleanup()
 
     def agent(self, **options):
+        options.setdefault("semantic_review", False)
         return ReactBashAgent(
             logs_dir=self.logs, model_name="openai/test-model", workdir=str(self.repo),
             extra_env={"REACT_AGENT_BASE_URL": "http://inference.invalid/v1", "REACT_AGENT_API_KEY": "dummy"},
@@ -119,17 +120,18 @@ class ForkHarborIntegrationTests(unittest.IsolatedAsyncioTestCase):
             response("edit_file", {"path": "calc.py", "old_text": "return a - b", "new_text": "return a + b"}),
             response("bash", {"command": "python3 -B -m unittest -q test_calc"}),
             response("finish", {"summary": "Fixed add; test failed before fix and passed afterward."}),
+            response("finish", {"summary": "Reviewed the actual patch; focused tests passed."}),
         ])
         self.assertIn("return a + b", (self.repo / "calc.py").read_text())
         test_results = [item for item in env.results if "Ran 1 test" in item.stderr]
         self.assertEqual([item.return_code for item in test_results], [1, 0])
         self.assertEqual(self.context.metadata["stop_reason"], "Submitted")
-        self.assertEqual(self.context.n_input_tokens, 50)
-        self.assertEqual(self.context.n_output_tokens, 25)
+        self.assertEqual(self.context.n_input_tokens, 60)
+        self.assertEqual(self.context.n_output_tokens, 30)
         native = json.loads((self.logs / "mini-swe-agent.json").read_text())
         self.assertEqual(native["trajectory_format"], "mini-swe-agent-1.1")
         self.assertEqual(native["info"]["mini_version"], "2.4.6")
-        self.assertEqual(native["info"]["model_stats"]["api_calls"], 5)
+        self.assertEqual(native["info"]["model_stats"]["api_calls"], 6)
         self.assertFalse(any("extra" in msg for payload in requests for msg in payload["messages"]))
         self.assertIn(SNAPSHOT_COMMAND, env.commands)
 
@@ -138,6 +140,8 @@ class ForkHarborIntegrationTests(unittest.IsolatedAsyncioTestCase):
 
         class BlockingEnvironment:
             async def exec(self, **kwargs):
+                if kwargs["command"].startswith("# MERA_REPOSITORY_BOOTSTRAP"):
+                    return SimpleNamespace(return_code=0, stdout='{"existing_entries":["calc.py"]}', stderr="")
                 started.set()
                 await asyncio.Event().wait()
 
@@ -155,7 +159,7 @@ class ForkHarborIntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.context.n_input_tokens, 10)
         self.assertTrue((self.logs / "mini-swe-agent.json").is_file())
         audit = json.loads((self.logs / "tool-audit.json").read_text())
-        self.assertTrue(audit["actions"][0]["cancelled"])
+        self.assertTrue(audit["actions"][-1]["cancelled"])
 
     async def test_cancellation_during_finally_snapshot_still_persists_usage(self):
         snapshot_started = asyncio.Event()

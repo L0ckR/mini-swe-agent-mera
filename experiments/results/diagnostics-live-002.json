@@ -1,0 +1,463 @@
+{
+  "kind": "NON_HARBOR_SYNTHETIC_DIAGNOSTIC",
+  "model": "qwen35-local",
+  "settings": {
+    "time_budget_sec": 240,
+    "max_steps": 25,
+    "max_tokens": 2048,
+    "thinking_budget_tokens": 512,
+    "request_timeout_sec": 120,
+    "context_budget_tokens": 8000
+  },
+  "baseline_archive_sha256": "40691ebf480dadd6d8594cb154371d3750948f4ff577e565defb3726497a1834",
+  "statement_format": "public_task_common_wrapper_v2_preinstalled_non_test_eight_phases",
+  "notes": [
+    "Synthetic tasks are not SWE MERA tasks or a competition score.",
+    "This experiment uses the public common task wrapper; it is a different condition from v001 plain issue text.",
+    "Visible tests are available to the agent; independent acceptance checks run only after the attempt.",
+    "Same local model and configured budgets are used for both variants."
+  ],
+  "by_variant": {
+    "before": {
+      "resolved": 1,
+      "total": 3
+    },
+    "after": {
+      "resolved": 1,
+      "total": 3
+    }
+  },
+  "source_snapshots": {
+    "before": {
+      "python_files_sha256": {
+        "custom_agent/__init__.py": "d831eae35655ad04e3b76071dec27928e8f18acb96f37006d45577637bd20631",
+        "custom_agent/_vendor/__init__.py": "9ee8eea6369bc45cab52ef823ed955ac69132303b983732a64d87f2a6c57b9de",
+        "custom_agent/_vendor/mini_swe_agent/__init__.py": "b8000610540d4e4d792920850365ed4a16812de555c6d3c3a6206b4ea665b646",
+        "custom_agent/_vendor/mini_swe_agent/agents/__init__.py": "3126fb58dc264cf062ca1bc98a9653639928214f6c13f5ab1244af705b1c3a93",
+        "custom_agent/_vendor/mini_swe_agent/agents/default.py": "16495e528ff128ec13b6f934c21cb0d9518d9beedfc36a7059ed2e63032d4adb",
+        "custom_agent/_vendor/mini_swe_agent/exceptions.py": "0590393c56bee873c79a691dcb4f15cb39c85f1658598b84bfb295bfde56921d",
+        "custom_agent/_vendor/mini_swe_agent/utils/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "custom_agent/_vendor/mini_swe_agent/utils/serialize.py": "3035b27cfeffdf91117c72bc8131340bd9c5f67a3010baeb4ecd6b0c7406f462",
+        "custom_agent/model_client.py": "45f8e0fdb3cefe8d449a42d1085486275a1a255d749ba400c4bbb6dff22697a9",
+        "custom_agent/policy.py": "f1dd150f193a4886709b87c103505bb23a2887ac1030144f9b8046594b0fcfe6",
+        "custom_agent/react_bash_agent.py": "fd9e37eb9e1ef646409c17cd0f7ff252e555fb5423997de66fc1fcbb3d6cb3a0",
+        "custom_agent/tools.py": "8ddadea53cee524d7f18d9d4db39f230380084ea773b6553a28ea0c4584ce394",
+        "inference/download_model.py": "a65dcd7111f58bb27e159db625a70fed35cb801800198bacb940a5ea282714b2",
+        "inference/serve.py": "716d4a15291a61accf1a1c4ff2fd929a2895cd7e47ef1ef454715b6e50ac1b35"
+      },
+      "bundle_sha256": "02e74a02bed06449e5223df7e06dc33fbcf20ec616bb939f76eaba43c028aaf7"
+    },
+    "after": {
+      "python_files_sha256": {
+        "custom_agent/__init__.py": "d831eae35655ad04e3b76071dec27928e8f18acb96f37006d45577637bd20631",
+        "custom_agent/_vendor/__init__.py": "9ee8eea6369bc45cab52ef823ed955ac69132303b983732a64d87f2a6c57b9de",
+        "custom_agent/_vendor/mini_swe_agent/__init__.py": "b8000610540d4e4d792920850365ed4a16812de555c6d3c3a6206b4ea665b646",
+        "custom_agent/_vendor/mini_swe_agent/agents/__init__.py": "3126fb58dc264cf062ca1bc98a9653639928214f6c13f5ab1244af705b1c3a93",
+        "custom_agent/_vendor/mini_swe_agent/agents/default.py": "16495e528ff128ec13b6f934c21cb0d9518d9beedfc36a7059ed2e63032d4adb",
+        "custom_agent/_vendor/mini_swe_agent/exceptions.py": "0590393c56bee873c79a691dcb4f15cb39c85f1658598b84bfb295bfde56921d",
+        "custom_agent/_vendor/mini_swe_agent/utils/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "custom_agent/_vendor/mini_swe_agent/utils/serialize.py": "3035b27cfeffdf91117c72bc8131340bd9c5f67a3010baeb4ecd6b0c7406f462",
+        "custom_agent/evidence.py": "9655f5e41102b2321b19c8cbd4360fa4aff3f47e435b0113b41a219c86069024",
+        "custom_agent/model_client.py": "521d3cba35a0214ce22b6d49c1277df2edbcb0d0ab2f08097ce965f0ec0031ff",
+        "custom_agent/policy.py": "f1dd150f193a4886709b87c103505bb23a2887ac1030144f9b8046594b0fcfe6",
+        "custom_agent/react_bash_agent.py": "5486693cbc7a2cf04b24aadfe29c409cc9ca767851ee5b4ee23deb5fff612b09",
+        "custom_agent/task_contract.py": "7ededf2da4fc346452cdd1b5ac2c37710b0d618f251e5fef600d2568ca633d1d",
+        "custom_agent/tools.py": "9a8d259cbcfa56122bfdbe07c5bc9c0cdcc4a43cbbfab3a52e3d422af6340268",
+        "inference/download_model.py": "a65dcd7111f58bb27e159db625a70fed35cb801800198bacb940a5ea282714b2",
+        "inference/serve.py": "716d4a15291a61accf1a1c4ff2fd929a2895cd7e47ef1ef454715b6e50ac1b35"
+      },
+      "bundle_sha256": "bb558785f881b8868d62feeb18d70755888ab4f41baca5d5d9f74b1db9eef577"
+    }
+  },
+  "backend_metadata": {
+    "engine_version": "0.17.6",
+    "thinking": false,
+    "engine": "ollama-native",
+    "thinking_token_budget_enforced": false,
+    "model": "qwen3:8b-q4_K_M",
+    "served_alias": "qwen35-local",
+    "max_output_tokens": 2048,
+    "ignored_fields_seen": [
+      "chat_template_kwargs",
+      "reasoning_effort",
+      "thinking_token_budget",
+      "tool_choice"
+    ],
+    "unsupported_controls": {
+      "thinking_token_budget": "unsupported; no per-thinking-token limit is enforced",
+      "reasoning_effort": "replaced by the bridge's explicit boolean thinking setting",
+      "chat_template_kwargs": "vLLM template controls are not available through native Ollama chat",
+      "tool_choice": "Ollama 0.17.6 selects tools automatically"
+    },
+    "diagnostic_only": true,
+    "production_equivalent": false,
+    "context_tokens": 16384
+  },
+  "raw_summary_sha256": "1b879ec98b0d7e49bb19a596f11451e99ca4bf2a069b44236cdb0e53d548a877",
+  "raw_jobs_published": false,
+  "official_verifier": "NOT_RUN",
+  "pass_at_1": null,
+  "trials": [
+    {
+      "variant": "before",
+      "case": "options_merge",
+      "resolved": true,
+      "elapsed_sec": 19.954,
+      "visible_tests_modified": [],
+      "patch_nonempty": true,
+      "agent_failed": false,
+      "acceptance": {
+        "returncode": 0,
+        "passed": 10,
+        "total": 10,
+        "checks": [
+          {
+            "criterion": "explicit falsey False",
+            "passed": true
+          },
+          {
+            "criterion": "explicit falsey 0",
+            "passed": true
+          },
+          {
+            "criterion": "explicit falsey ''",
+            "passed": true
+          },
+          {
+            "criterion": "explicit falsey []",
+            "passed": true
+          },
+          {
+            "criterion": "explicit falsey {}",
+            "passed": true
+          },
+          {
+            "criterion": "none keeps old",
+            "passed": true
+          },
+          {
+            "criterion": "none omits new",
+            "passed": true
+          },
+          {
+            "criterion": "new truthy key",
+            "passed": true
+          },
+          {
+            "criterion": "inputs unchanged",
+            "passed": true
+          },
+          {
+            "criterion": "fresh dictionary",
+            "passed": true
+          }
+        ]
+      }
+    },
+    {
+      "variant": "before",
+      "case": "intervals",
+      "resolved": false,
+      "elapsed_sec": 222.665,
+      "visible_tests_modified": [],
+      "patch_nonempty": true,
+      "agent_failed": false,
+      "acceptance": {
+        "returncode": 1,
+        "passed": 6,
+        "total": 9,
+        "checks": [
+          {
+            "criterion": "interval case 0",
+            "passed": true
+          },
+          {
+            "criterion": "interval case 1",
+            "passed": false
+          },
+          {
+            "criterion": "interval case 2",
+            "passed": true
+          },
+          {
+            "criterion": "interval case 3",
+            "passed": true
+          },
+          {
+            "criterion": "interval case 4",
+            "passed": false
+          },
+          {
+            "criterion": "interval case 5",
+            "passed": false
+          },
+          {
+            "criterion": "interval case 6",
+            "passed": true
+          },
+          {
+            "criterion": "input objects unchanged",
+            "passed": true
+          },
+          {
+            "criterion": "tuple output",
+            "passed": true
+          }
+        ]
+      }
+    },
+    {
+      "variant": "before",
+      "case": "query_params",
+      "resolved": false,
+      "elapsed_sec": 124.781,
+      "visible_tests_modified": [],
+      "patch_nonempty": true,
+      "agent_failed": false,
+      "acceptance": {
+        "returncode": 1,
+        "passed": 3,
+        "total": 9,
+        "checks": [
+          {
+            "criterion": "existing raw query and fragment",
+            "passed": true
+          },
+          {
+            "criterion": "list expansion",
+            "passed": false
+          },
+          {
+            "criterion": "tuple expansion",
+            "passed": false
+          },
+          {
+            "criterion": "empty string and zero",
+            "passed": false
+          },
+          {
+            "criterion": "none skipped",
+            "passed": false
+          },
+          {
+            "criterion": "no values exact identity",
+            "passed": false
+          },
+          {
+            "criterion": "only none exact identity",
+            "passed": true
+          },
+          {
+            "criterion": "new unicode encoding",
+            "passed": false
+          },
+          {
+            "criterion": "mapping unchanged",
+            "passed": true
+          }
+        ]
+      }
+    },
+    {
+      "variant": "after",
+      "case": "options_merge",
+      "resolved": true,
+      "elapsed_sec": 16.235,
+      "visible_tests_modified": [],
+      "patch_nonempty": true,
+      "agent_failed": false,
+      "acceptance": {
+        "returncode": 0,
+        "passed": 10,
+        "total": 10,
+        "checks": [
+          {
+            "criterion": "explicit falsey False",
+            "passed": true
+          },
+          {
+            "criterion": "explicit falsey 0",
+            "passed": true
+          },
+          {
+            "criterion": "explicit falsey ''",
+            "passed": true
+          },
+          {
+            "criterion": "explicit falsey []",
+            "passed": true
+          },
+          {
+            "criterion": "explicit falsey {}",
+            "passed": true
+          },
+          {
+            "criterion": "none keeps old",
+            "passed": true
+          },
+          {
+            "criterion": "none omits new",
+            "passed": true
+          },
+          {
+            "criterion": "new truthy key",
+            "passed": true
+          },
+          {
+            "criterion": "inputs unchanged",
+            "passed": true
+          },
+          {
+            "criterion": "fresh dictionary",
+            "passed": true
+          }
+        ]
+      }
+    },
+    {
+      "variant": "after",
+      "case": "intervals",
+      "resolved": false,
+      "elapsed_sec": 10.737,
+      "visible_tests_modified": [],
+      "patch_nonempty": true,
+      "agent_failed": false,
+      "acceptance": {
+        "returncode": 1,
+        "passed": 7,
+        "total": 9,
+        "checks": [
+          {
+            "criterion": "interval case 0",
+            "passed": true
+          },
+          {
+            "criterion": "interval case 1",
+            "passed": true
+          },
+          {
+            "criterion": "interval case 2",
+            "passed": false
+          },
+          {
+            "criterion": "interval case 3",
+            "passed": false
+          },
+          {
+            "criterion": "interval case 4",
+            "passed": true
+          },
+          {
+            "criterion": "interval case 5",
+            "passed": true
+          },
+          {
+            "criterion": "interval case 6",
+            "passed": true
+          },
+          {
+            "criterion": "input objects unchanged",
+            "passed": true
+          },
+          {
+            "criterion": "tuple output",
+            "passed": true
+          }
+        ]
+      }
+    },
+    {
+      "variant": "after",
+      "case": "query_params",
+      "resolved": false,
+      "elapsed_sec": 21.413,
+      "visible_tests_modified": [],
+      "patch_nonempty": true,
+      "agent_failed": false,
+      "acceptance": {
+        "returncode": 1,
+        "passed": 5,
+        "total": 9,
+        "checks": [
+          {
+            "criterion": "existing raw query and fragment",
+            "passed": false
+          },
+          {
+            "criterion": "list expansion",
+            "passed": false
+          },
+          {
+            "criterion": "tuple expansion",
+            "passed": false
+          },
+          {
+            "criterion": "empty string and zero",
+            "passed": true
+          },
+          {
+            "criterion": "none skipped",
+            "passed": true
+          },
+          {
+            "criterion": "no values exact identity",
+            "passed": false
+          },
+          {
+            "criterion": "only none exact identity",
+            "passed": true
+          },
+          {
+            "criterion": "new unicode encoding",
+            "passed": true
+          },
+          {
+            "criterion": "mapping unchanged",
+            "passed": true
+          }
+        ]
+      }
+    }
+  ],
+  "post_audit": {
+    "raw_sha256": "54c5dab6ba75f2bb994b8630b409d8589bd0cce92234345208c590841cea67bc",
+    "trials": [
+      {
+        "variant": "before",
+        "case": "options_merge",
+        "audited_test_changes": [],
+        "note": "Read-only post-audit; original model attempt and raw result are retained unchanged."
+      },
+      {
+        "variant": "before",
+        "case": "intervals",
+        "audited_test_changes": [],
+        "note": "Read-only post-audit; original model attempt and raw result are retained unchanged."
+      },
+      {
+        "variant": "before",
+        "case": "query_params",
+        "audited_test_changes": [],
+        "note": "Read-only post-audit; original model attempt and raw result are retained unchanged."
+      },
+      {
+        "variant": "after",
+        "case": "options_merge",
+        "audited_test_changes": [],
+        "note": "Read-only post-audit; original model attempt and raw result are retained unchanged."
+      },
+      {
+        "variant": "after",
+        "case": "intervals",
+        "audited_test_changes": [],
+        "note": "Read-only post-audit; original model attempt and raw result are retained unchanged."
+      },
+      {
+        "variant": "after",
+        "case": "query_params",
+        "audited_test_changes": [],
+        "note": "Read-only post-audit; original model attempt and raw result are retained unchanged."
+      }
+    ]
+  }
+}

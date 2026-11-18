@@ -42,7 +42,7 @@ class InferenceAPICheckTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["completion_tokens"], 40)
         self.assertEqual(len(requests), 8)
         self.assertEqual(requests[1]["messages"][2]["role"], "tool")
-        self.assertEqual({entry["function"]["name"] for entry in requests[2]["tools"]}, {"bash", "read_file", "edit_file", "create_file", "finish"})
+        self.assertEqual({entry["function"]["name"] for entry in requests[2]["tools"]}, {"bash", "read_file", "search", "edit_file", "create_file", "run_tests", "finish"})
         self.assertTrue(all(payload["thinking_token_budget"] == 3072 for payload in requests[-4:]))
 
     async def test_missing_model_alias_fails_before_completions(self):
