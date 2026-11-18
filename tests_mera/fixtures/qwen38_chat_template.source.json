@@ -1,0 +1,8 @@
+{
+  "model_id": "Qwen/Qwen3.8-27B-FP8",
+  "revision": "c3a462cc3d38cf351f3b26cbd763469eeb74ef81",
+  "url": "https://huggingface.co/Qwen/Qwen3.8-27B-FP8/resolve/c3a462cc3d38cf351f3b26cbd763469eeb74ef81/chat_template.jinja",
+  "license": "Apache-2.0",
+  "sha256": "af16f654968d47d09a6c604e00370b12dbc21f76456f59c9e98b82e84d9f6375",
+  "purpose": "Offline protocol compatibility test only. Not included in the submission archive."
+}

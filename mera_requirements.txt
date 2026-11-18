@@ -1,0 +1,2 @@
+# Match the organizer's Harbor host, including transitive dependencies.
+-r vendor/stage2/requirements.txt

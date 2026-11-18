@@ -1,0 +1,36 @@
+{
+  "repository": "https://github.com/SWE-agent/mini-swe-agent",
+  "commit": "04d809ceab9df28f9adaed044884180159172930",
+  "version": "2.4.6",
+  "license": "MIT",
+  "files": {
+    "src/minisweagent/__init__.py": {
+      "git_blob_sha": "8dbc904c36c3ed31b3c7d9697e44dbf0cf6c0e87",
+      "sha256": "0a708308b1b62cc020b60799c3d54f665845f795b3f0c4fdac787c96a38d12c7"
+    },
+    "src/minisweagent/agents/default.py": {
+      "git_blob_sha": "ca310e37d7c61888c576f73f5e1790ac769407b1",
+      "sha256": "e8ef8aa365942d739c2ec5cb0879f60f377d2dc2de8ec670aaedf3bafb45a4c2"
+    },
+    "src/minisweagent/agents/__init__.py": {
+      "git_blob_sha": "e625b5d4b3485835fe9592079ddc1fcfea71f20e",
+      "sha256": "f95a9f4d1dcc08a05ba6263c5da562b3a7e9e3ae07734f2b9f0d83153c8d0cab"
+    },
+    "src/minisweagent/exceptions.py": {
+      "git_blob_sha": "b11e404c98f62ace8c5c75b9a683105d49984a6c",
+      "sha256": "0590393c56bee873c79a691dcb4f15cb39c85f1658598b84bfb295bfde56921d"
+    },
+    "src/minisweagent/utils/serialize.py": {
+      "git_blob_sha": "ccd5947bc9dbea7795555ca72670ccf6860d219f",
+      "sha256": "3035b27cfeffdf91117c72bc8131340bd9c5f67a3010baeb4ecd6b0c7406f462"
+    },
+    "src/minisweagent/utils/__init__.py": {
+      "git_blob_sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "LICENSE.md": {
+      "git_blob_sha": "503821c9dbe06f13a48e54088eb6cd203adb407f",
+      "sha256": "0f796e58f91d1c07bb2c1b1d0f8bf3a83017c3a5dec1bdc6fae733b2cd2e875b"
+    }
+  }
+}

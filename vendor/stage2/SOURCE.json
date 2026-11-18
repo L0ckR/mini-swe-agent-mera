@@ -1,0 +1,11 @@
+{
+  "repository": "https://github.com/MERA-Evaluation/SWE-MERA-CHALLENGE",
+  "commit": "070bcb675d96845745e28b40f3830c98139217ea",
+  "retrieved_date": "2026-11-18",
+  "sha256": {
+    "run.sh": "2826d2e78413f61de2f002937e27b89da0091874cdaba12f2597309066fa1fad",
+    "inference/test.sh": "9aea33e16cd4b7584ee3fbf45ce49da12bbffb74851b5c78f2c3abbf927ff0fa",
+    "requirements.txt": "9c06ae8cf4cfb1d17cc53278569394c39f758395e7d68dc8396a70178e518235"
+  },
+  "purpose": "Unmodified organizer runner and API check for local validation only. Not packaged in submission ZIP."
+}
